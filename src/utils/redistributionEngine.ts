@@ -12,10 +12,12 @@ import {
   StockAgingBucket,
   ConsignmentRecommendation,
   OptionAllocationSummary,
-  OptionAllocationRow
+  OptionAllocationRow,
+  FestivalEvent,
 } from '../types';
 import { ALL_BRANCHES, ALL_WEIGHTS, DEFAULT_PERIOD } from '../data/defaultDataset';
 import { CATEGORY_PRESETS } from '../data/categoryPresets';
+import { calculateFestivalAdjustedSales } from './festivalEngine';
 
 export function calculateRedistributionReport(
   records: RawInventoryRecord[],
@@ -24,7 +26,8 @@ export function calculateRedistributionReport(
   baseBranches?: string[],
   baseWeights?: string[],
   selectedTimeframe: SalesTimeframe = '1Y',
-  allocationMode: AllocationMode = 'contribution'
+  allocationMode: AllocationMode = 'contribution',
+  festivals?: FestivalEvent[]
 ): RedistributionReport {
   const activeCategory: CategoryConfig = categoryConfig || CATEGORY_PRESETS[0];
 
@@ -140,6 +143,21 @@ export function calculateRedistributionReport(
     else if (selectedTimeframe === '6M') activeTimeframeSold = s6m;
     else if (selectedTimeframe === '9M') activeTimeframeSold = Math.max(0, s1y || sold); // upload total = 9-month sold
     else if (selectedTimeframe === '2Y') activeTimeframeSold = s2y;
+
+    // Festival adjustment: if festivals overlap the reporting period, strip out the
+    // inflated portion so the average reflects normal (non-festival) demand.
+    if (festivals && festivals.length > 0 && activeTimeframeSold > 0) {
+      const adjusted = calculateFestivalAdjustedSales(
+        activeTimeframeSold,
+        r.branch,
+        selectedTimeframe,
+        festivals,
+        period
+      );
+      if (adjusted.isFestivalInflated) {
+        activeTimeframeSold = adjusted.normalSoldQty;
+      }
+    }
 
     matrixCells[r.branch][r.weight].sold += activeTimeframeSold;
     matrixCells[r.branch][r.weight].stock += stock;

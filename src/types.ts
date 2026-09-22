@@ -1,5 +1,30 @@
 export type SalesTimeframe = '1M' | '3M' | '6M' | '9M' | '1Y' | '2Y';
 
+export type FestivalEventType = 'festival' | 'exhibition' | 'seasonal' | 'promotion';
+export type FestivalSalesImpact = 'high' | 'medium' | 'low';
+
+export interface FestivalEvent {
+  id: string;
+  name: string;
+  eventType: FestivalEventType;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  description?: string;
+  salesImpact: FestivalSalesImpact;
+  affectedBranches?: string[] | null; // null = all branches
+  createdAt?: string;
+}
+
+export interface FestivalAdjustedSales {
+  rawSoldQty: number;
+  festivalSoldQty: number;
+  normalSoldQty: number;
+  adjustedMonthlyAverage: number;
+  rawMonthlyAverage: number;
+  isFestivalInflated: boolean;
+  festivalsApplied: string[];
+}
+
 /**
  * Global distribution analysis mode — 3 top buttons switch the whole app's report.
  * contribution = Total stock (incl. DWL) × branch sales share

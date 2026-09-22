@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { DEFAULT_RAW_RECORDS, DEFAULT_PERIOD } from './data/defaultDataset';
 import { calculateRedistributionReport } from './utils/redistributionEngine';
-import { RawInventoryRecord, SalesTimeframe, AllocationMode, AuthUser } from './types';
+import { fetchFestivals } from './utils/festivalEngine';
+import { RawInventoryRecord, SalesTimeframe, AllocationMode, AuthUser, FestivalEvent } from './types';
 import {
   ReportFilterBar,
   ReportFilters,
@@ -30,6 +31,7 @@ import { AIAssistantDrawer } from './components/AIAssistantDrawer';
 import { BranchDetailModal } from './components/BranchDetailModal';
 import { ProductLocationModal } from './components/ProductLocationModal';
 import { DailyDualFileUploadModal } from './components/DailyDualFileUploadModal';
+import { FestivalManagerModal } from './components/FestivalManagerModal';
 import { ERPLaunchpad } from './components/ERPLaunchpad';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { DashboardTopHeader } from './components/DashboardTopHeader';
@@ -111,6 +113,19 @@ export default function App() {
   const [isOperationsFolderOpen, setIsOperationsFolderOpen] = useState(false);
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
   const [isDailyUploadOpen, setIsDailyUploadOpen] = useState(false);
+  const [isFestivalManagerOpen, setIsFestivalManagerOpen] = useState(false);
+
+  // Festival events for sales-adjusted analysis
+  const [festivals, setFestivals] = useState<FestivalEvent[]>([]);
+
+  const refreshFestivals = useCallback(async () => {
+    const data = await fetchFestivals();
+    setFestivals(data);
+  }, []);
+
+  useEffect(() => {
+    refreshFestivals();
+  }, [refreshFestivals]);
 
   // Analytical Report calculation — always from filtered upload data + timeframe
   const report = useMemo(() => {
@@ -121,9 +136,10 @@ export default function App() {
       undefined,
       undefined,
       selectedTimeframe,
-      allocationMode
+      allocationMode,
+      festivals
     );
-  }, [filteredRecords, period, selectedTimeframe, allocationMode]);
+  }, [filteredRecords, period, selectedTimeframe, allocationMode, festivals]);
 
   /** Parse "DD-MM-YYYY to DD-MM-YYYY" (or ISO) and return approximate month span. */
   const inferMonthsFromPeriod = (periodText: string): number | null => {
@@ -423,6 +439,7 @@ export default function App() {
         onOpenOperations={() => setIsOperationsFolderOpen(true)}
         onOpenUserManagement={() => { if (currentUser?.isOwner) setIsUserManagementOpen(true); }}
         onOpenSettings={() => { if (currentUser?.isOwner) setIsSettingsOpen(true); }}
+        onOpenFestivalManager={() => setIsFestivalManagerOpen(true)}
         currentUser={currentUser}
         onLogout={() => {
           logoutCurrentSession().then(() => setCurrentUser(null));
@@ -692,6 +709,13 @@ export default function App() {
         onClose={() => setIsDailyUploadOpen(false)}
         onImportRecords={handleImportRecords}
         currentPeriod={period}
+      />
+
+      {/* Festival & Event Calendar Manager Modal */}
+      <FestivalManagerModal
+        isOpen={isFestivalManagerOpen}
+        onClose={() => setIsFestivalManagerOpen(false)}
+        onFestivalsUpdated={refreshFestivals}
       />
 
       {/* Movement Analysis AI Copilot Drawer */}
